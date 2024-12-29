@@ -30,6 +30,7 @@ class EventBase;
 
 /**
  * AsyncTimeout is used to asynchronously wait for a timeout to occur.
+ *  AsyncTimeout: 用于异步等待超时的类
  */
 class AsyncTimeout {
  public:
@@ -37,6 +38,7 @@ class AsyncTimeout {
 
   /**
    * Create a new AsyncTimeout object, driven by the specified TimeoutManager.
+   *   创建新的AsyncTimeout对象，由指定的TimeoutManager驱动
    */
   explicit AsyncTimeout(TimeoutManager* timeoutManager);
   explicit AsyncTimeout(EventBase* eventBase);

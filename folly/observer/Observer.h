@@ -30,11 +30,12 @@ namespace observer {
 /**
  * Observer - a library which lets you create objects which track updates of
  * their dependencies and get re-computed when any of the dependencies changes.
- *
+ *  观察者模型：创建具有依赖关系跟踪更新的对象，并在任何依赖项更改时重新计算。
  *
  * Given an Observer, you can get a snapshot of the current version of the
  * object it holds:
- *
+ * 对于给定的观察者，可以获取其当前版本对象快照：
+ * 
  *   Observer<int> myObserver = ...;
  *   Snapshot<int> mySnapshot = myObserver.getSnapshot();
  * or simply
@@ -42,7 +43,7 @@ namespace observer {
  *
  * Snapshot will hold a view of the object, even if object in the Observer
  * gets updated.
- *
+ * 快照将保留对象的视图，即使观察者中的对象也会更新。
  *
  * What makes Observer powerful is its ability to track updates to other
  * Observers. Imagine we have two separate Observers A and B which hold
@@ -66,6 +67,8 @@ namespace observer {
  * Notice that a + b will be only called when either a or b is changed. Getting
  * a snapshot from sumObserver won't trigger any re-computation.
  *
+ *  当多个线程同时获取Observer快照(涉及获取shared_ptr)时成本较高。
+ *  若考虑到getSnapshot()的性能，可考虑使用其他实现，如AtomicObserver、TLObserver等。
  * Getting an Observer snapshot involves acquiring a shared_ptr, which can be
  * expensive, especially if several threads do so concurrently. If the cost of
  * getSnapshot() is noticeable, alternative Observer implementations are
@@ -74,28 +77,40 @@ namespace observer {
  * - If T is a type for which std::atomic<T> is lock-free (all word-sized PODs
  *   for example), AtomicObserver and ReadMostlyAtomicObserver offer the best
  *   performance at no additional memory cost.
+ *  若std::atomic<T> 是无锁类型，则AtomicObserver和ReadMostlyAtomicObserver提供最佳性能，无额外内存开销。
  *
  * - TLObserver stores a thread-local snapshot, so that it can be accessed
  *   without synchronization (except when it needs updating). This however can
  *   consume significant amounts of memory by stranding old snapshots in threads
  *   that do not access, and thus refresh, the observer.
+ *   TLObserver将线程本地快照存储在线程本地存储中，因此无需同步即可访问(除非需要更新)。
+ *   但是线程不活跃的旧快照堆积可能导致内存消耗，并在线程不访问时刷新观察者。
  *
  * - HazptrObserver uses hazard pointers to protect the snapshot, which offer
  *   high read scalability and low cost, but the snapshot should be held as
  *   little as possible and should not cross coroutine suspension points.
+ *   HazptrObserver使用Hazard指针保护快照，具有高读取扩展性和低成本，
+ *   但快照应尽可能少地保留，并且不应跨协程暂停点。
  *
  * - ReadMostlyTLObserver returns a snapshot that can be used like a regular
  *   shared_ptr. Scalability and cost are comparable to HazptrObserver, but the
  *   snapshots can be held for arbitrary time. Memory cost is a small constant
  *   for each thread that acquires a snapshot.
+ *   ReadMostlyTLObserver返回可以像常规shared_ptr一样使用的快照。
+ *   扩展性和成本与HazptrObserver相当，但快照可以保留任意时间。
+ *   内存成本为每个线程获取快照的常数级别。
  *
  * - CoreCachedObserver can be used if a std::shared_ptr<T> is strictly
  *   required. Read scalability is comparable to the previous options, but cost
  *   is moderately higher. Memory cost is a small constant for each CPU in the
  *   system.
+ *   CoreCachedObserver可以用于严格需要std::shared_ptr<T>的场景。
+ *   读取扩展性与之前的选项相当，但成本较高。
+ *   内存成本为系统每个CPU的常数级别。
  *
  * See ObserverCreator class if you want to wrap any existing subscription API
  * in an Observer object.
+ *  若要将现有订阅API封装为观察者对象，参阅ObserverCreator类。
  */
 template <typename T>
 class Observer;
@@ -105,14 +120,20 @@ class Observer;
  * `std::atomic`. Reading only requires atomic loads unless the cached value
  * is stale. If the cache needs to be refreshed, a mutex is used to
  * synchronize the update. This avoids creating a shared_ptr for every read.
+ *  AtomicObserver使用`std::atomic`对观察者进行read优化的缓存。
+ *  Reading只需进行原子加载，除非缓存值已过期。
+ * 若缓存需要刷新，则使用互斥锁进行同步更新，以避免为每个read创建shared_ptr。
  *
  * AtomicObserver models CopyConstructible and MoveConstructible. Copying or
  * moving simply invalidates the cache.
- *
+ * AtomicObserver模型支持拷贝构造和移动构造。拷贝或移动只会使缓存失效。
+ * 
  * AtomicObserver is ideal when there are lots of reads on a trivially-copyable
  * type. if `std::atomic<T>` is not possible but you still want to optimize
  * reads, consider a TLObserver.
- *
+ * AtomicObserver适用于在trivially-copyable类型上有大量读取的场景。
+ *   若`std::atomic<T>`不可行，但仍需优化读取，则考虑TLObserver。
+ * 
  *   Observer<int> observer = ...;
  *   AtomicObserver<int> atomicObserver(observer);
  *   auto value = *atomicObserver;
@@ -176,12 +197,14 @@ class Snapshot {
 
   /**
    * Return the version of the observed object.
+   *  返回被观察对象的版本。
    */
   size_t getVersion() const { return version_; }
 
  private:
   friend class Observer<T>;
 
+  /* 构造函数 */
   Snapshot(
       const observer_detail::Core& core,
       std::shared_ptr<const T> data,
@@ -190,24 +213,34 @@ class Snapshot {
     DCHECK(data_);
   }
 
+  /* 数据*/
   std::shared_ptr<const T> data_;
+  /* 版本*/
   size_t version_;
   const observer_detail::Core* core_;
 };
 
+/* 回调句柄 */
 class CallbackHandle {
  public:
+  /* 构造函数 */
   CallbackHandle();
   template <typename T>
   CallbackHandle(Observer<T> observer, Function<void(Snapshot<T>)> callback);
+  /* 禁用拷贝构造函数 */
   CallbackHandle(const CallbackHandle&) = delete;
+  /* 默认移动构造函数 */
   CallbackHandle(CallbackHandle&&) = default;
+  /* 禁用拷贝赋值函数 */
   CallbackHandle& operator=(const CallbackHandle&) = delete;
   CallbackHandle& operator=(CallbackHandle&&) noexcept;
+  /* 析构函数 */
   ~CallbackHandle();
 
   // If callback is currently running, waits until it completes.
   // Callback will never be called after cancel() returns.
+  /* 若callback正在运行，则等待其完成.*
+   * 若cancel()返回后，callback将不会被调用。*/
   void cancel();
 
  private:
@@ -218,23 +251,28 @@ class CallbackHandle {
 template <typename Observable, typename Traits>
 class ObserverCreator;
 
+/* 观察者Observer */
 template <typename T>
 class Observer {
  public:
+  /* 构造函数 */
   explicit Observer(observer_detail::Core::Ptr core);
 
+  /* 获取快照 */
   Snapshot<T> getSnapshot() const;
   Snapshot<T> operator*() const { return getSnapshot(); }
 
   /**
    * Check if we have a newer version of the observed object than the snapshot.
    * Snapshot should have been originally from this Observer.
+   *  检查是否存在比快照更新的被观察对象版本。
    */
   bool needRefresh(const Snapshot<T>& snapshot) const {
     DCHECK_EQ(core_.get(), snapshot.core_);
     return needRefresh(snapshot.getVersion());
   }
 
+  /* 需要刷新 */
   bool needRefresh(size_t version) const {
     return version < core_->getVersionLastChange();
   }
@@ -295,6 +333,7 @@ Observer<T> makeValueObserver(Observer<T> observer);
 
 /**
  * A more efficient short-cut for makeValueObserver(makeObserver(...)).
+ *  更高效的makeValueObserver(makeObserver(...))的快捷方式。
  */
 template <typename F>
 Observer<observer_detail::ResultOf<F>> makeValueObserver(F&& creator);
@@ -312,16 +351,21 @@ Observer<T> makeStaticObserver(T value);
 template <typename T>
 Observer<std::decay_t<T>> makeStaticObserver(std::shared_ptr<T> value);
 
+/* AtomicObserver */
 template <typename T>
 class AtomicObserver {
  public:
+  /* 构造函数 */
   explicit AtomicObserver(Observer<T> observer);
   AtomicObserver(const AtomicObserver<T>& other);
   AtomicObserver(AtomicObserver<T>&& other) noexcept;
+
+  /* 重载赋值运算符 */
   AtomicObserver<T>& operator=(const AtomicObserver<T>& other);
   AtomicObserver<T>& operator=(AtomicObserver<T>&& other) noexcept;
   AtomicObserver<T>& operator=(Observer<T> observer);
 
+  /* 获取AtomicObserver */
   T get() const;
   T operator*() const { return get(); }
 

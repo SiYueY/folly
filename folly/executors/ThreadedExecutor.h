@@ -28,27 +28,32 @@
 namespace folly {
 
 /***
- *  ThreadedExecutor
+ *  ThreadedExecutor 线程执行器
  *
- *  An executor for blocking tasks.
+ *  An executor for blocking tasks. 阻塞任务的执行器
  *
  *  This executor runs each task in its own thread. It works well for tasks
  *  which mostly sleep, but works poorly for tasks which mostly compute.
+ *  此执行器为每个任务创建一个线程。其适用于大部分休眠的任务，但不适用于大部分计算的任务。
  *
  *  For each task given to the executor with `add`, the executor spawns a new
  *  thread for that task, runs the task in that thread, and joins the thread
  *  after the task has completed.
+ *  对于给定给执行器的每个任务，执行器为该任务创建一个新线程，在该线程中运行任务，并在任务完成后等待线程。
  *
  *  Spawning and joining task threads are done in the executor's internal
  *  control thread. Calls to `add` put the tasks to be run into a queue, where
  *  the control thread will find them.
+ *  控制线程将任务放入队列中，然后控制线程将找到它们并启动它们。
  *
  *  There is currently no limitation on, or throttling of, concurrency.
+ *  并发性的限制或限制尚未实现。
  *
  *  This executor is not currently optimized for performance. For example, it
  *  makes no attempt to re-use task threads. Rather, it exists primarily to
  *  offload sleep-heavy tasks from the CPU executor, where they might otherwise
  *  be run.
+ *  此执行器当前没有针对性能进行优化。例如，它没有尝试重用任务线程。相反，它主要用于将休眠密集型任务卸载到CPU执行器，
  */
 class ThreadedExecutor : public virtual folly::Executor {
  public:

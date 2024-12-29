@@ -37,9 +37,11 @@ namespace detail {
 template <class Duration>
 struct HHWheelTimerDurationConst;
 
+/* 时间轮持续的时间间隔 */
 template <class Duration>
 class HHWheelTimerDurationInterval {
  public:
+  /* 构造函数 */
   explicit HHWheelTimerDurationInterval(Duration interval)
       : divInterval_(interval.count()),
         divIntervalForSteadyClock_(
@@ -59,6 +61,7 @@ class HHWheelTimerDurationInterval {
 
   Duration fromWheelTicks(int64_t t) const { return t * interval_; }
 
+  /* 时间间隔 */
   Duration interval() const { return interval_; }
 
   class Divider {
@@ -99,6 +102,7 @@ struct HHWheelTimerDurationConst<std::chrono::milliseconds> {
   static constexpr int DEFAULT_TICK_INTERVAL = 10;
 };
 
+/* 滴答间隔 */
 template <>
 struct HHWheelTimerDurationConst<std::chrono::microseconds> {
   static constexpr int DEFAULT_TICK_INTERVAL = 200;
@@ -107,6 +111,7 @@ struct HHWheelTimerDurationConst<std::chrono::microseconds> {
 
 /**
  * Hashed Hierarchical Wheel Timer
+ *  哈希分层时间轮
  *
  * We model timers as the number of ticks until the next
  * due event.  We allow 32-bits of space to track this
@@ -140,6 +145,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
 
   /**
    * A callback to be notified when a timeout has expired.
+   *  超时回调
    */
   class Callback
       : public boost::intrusive::list_base_hook<
@@ -150,17 +156,20 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
 
     /**
      * timeoutExpired() is invoked when the timeout has expired.
+     *  当timeout过期时调用timeoutExpired函数
      */
     virtual void timeoutExpired() noexcept = 0;
 
     /// This callback was canceled. The default implementation is to just
     /// proxy to `timeoutExpired` but if you care about the difference between
     /// the timeout finishing or being canceled you can override this.
+    /* 取消超时回调 */
     virtual void callbackCanceled() noexcept { timeoutExpired(); }
 
     /**
      * Cancel the timeout, if it is running.
-     *
+     *  取消超时
+     *  
      * If the timeout is not scheduled, cancelTimeout() does nothing.
      */
     void cancelTimeout() {
@@ -173,6 +182,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
 
     /**
      * Return true if this timeout is currently scheduled, and false otherwise.
+     *  超时是否已被调度
      */
     bool isScheduled() const { return wheel_ != nullptr; }
 
@@ -180,6 +190,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
      * Get the time remaining until this timeout expires. Return 0 if this
      * timeout is not scheduled or expired. Otherwise, return expiration
      * time minus current time.
+     *  获取剩余时间。若超时未被调度或已过期，返回0。否则，返回超时时间减去当前时间。
      */
     Duration getTimeRemaining() const {
       return getTimeRemaining(std::chrono::steady_clock::now());
@@ -187,6 +198,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
 
    private:
     // Get the time remaining until this timeout expires
+    /* 获取剩余时间 */
     Duration getTimeRemaining(std::chrono::steady_clock::time_point now) const {
       if (now >= expiration_) {
         return Duration(0);
@@ -194,6 +206,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
       return std::chrono::duration_cast<Duration>(expiration_ - now);
     }
 
+    /* 设置调度 */
     void setScheduled(
         HHWheelTimerBase* wheel,
         std::chrono::steady_clock::time_point deadline);
@@ -217,6 +230,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
   /**
    * Create a new HHWheelTimerBase with the specified interval and the
    * default timeout value set.
+   *  以指定时间间隔和默认超时值创建新的HHWheelTimerBase
    *
    * Objects created using this version of constructor can be used
    * to schedule both variable interval timeouts using
@@ -232,33 +246,35 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
 
   /**
    * Cancel all outstanding timeouts
-   *
+   * 取消所有未过期的超时
    * @returns the number of timeouts that were cancelled.
    */
   size_t cancelAll();
 
   /**
    * Get the tick interval for this HHWheelTimerBase.
-   *
+   *  获取时间轮的tick间隔
    * Returns the tick interval in milliseconds.
    */
   Duration getTickInterval() const { return interval_.interval(); }
 
   /**
    * Get the default timeout interval for this HHWheelTimerBase.
-   *
+   *  获取默认超时时间间隔
    * Returns the timeout interval in milliseconds.
    */
   Duration getDefaultTimeout() const { return defaultTimeout_; }
 
   /**
    * Set the default timeout interval for this HHWheelTimerBase.
+   *  设置默认超时时间间隔
    */
   void setDefaultTimeout(Duration timeout) { defaultTimeout_ = timeout; }
 
   /**
    * Schedule the specified Callback to be invoked after the
    * specified timeout interval.
+   *  调度回调函数在指定超时时间后被调用
    *
    * If the callback is already scheduled, this cancels the existing timeout
    * before scheduling the new timeout.
@@ -268,6 +284,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
   /**
    * Schedule the specified Callback to be invoked after the
    * default timeout interval.
+   *  调度回调函数在默认超时时间后被调用
    *
    * If the callback is already scheduled, this cancels the existing timeout
    * before scheduling the new timeout.
@@ -310,7 +327,7 @@ class HHWheelTimerBase : private folly::AsyncTimeout,
  protected:
   /**
    * Protected destructor.
-   *
+   *  Protected 析构函数
    * Use destroy() instead.  See the comments in DelayedDestruction for more
    * details.
    */

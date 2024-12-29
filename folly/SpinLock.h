@@ -25,6 +25,8 @@
  * than wasting a timeslice repeatedly querying a lock held by a
  * thread that's blocked, and you can't prevent userspace
  * programs blocking.
+ * Spinlock在抢占式多任务操作系统中有严重的问题，而std::mutex几乎肯定是更好的选择，
+ * 因为让操作系统调度器使线程休眠比重复查询被阻塞的线程持有锁的时间片更好，自旋锁可能导致用户空间程序阻塞。
  *
  * Spinlocks in an operating system kernel make much more sense than
  * they do in userspace.

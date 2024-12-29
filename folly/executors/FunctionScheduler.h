@@ -31,6 +31,7 @@ namespace folly {
 
 /**
  * Schedules any number of functions to run at various intervals. E.g.,
+ *  在指定的时间间隔运行任意数量的函数
  *
  *   FunctionScheduler fs;
  *
@@ -48,16 +49,20 @@ namespace folly {
  *       thread, either use multiple FunctionScheduler objects, or check out
  *       ThreadedRepeatingFunctionRunner.h for a much simpler contract of
  *       "run each function periodically in its own thread".
+ *  注意：该类仅使用单个线程，若需使用多个线程可创建多个FunctionScheduler对象。
  *
  * start() schedules the functions, while shutdown() terminates further
  * scheduling (after any running function terminates).
+ *  start()方法负责调度函数，shutdown()终止后续调度（运行函数完成后）。
  */
 class FunctionScheduler {
  public:
+  /* 构造函数*/
   FunctionScheduler();
 
   /**
    * On destruction, ensures that this instance is shutdown prior to deletion.
+   *   析构时，确保实例已被shutdown，以防止在删除时发生未知行为。
    *
    * See `shutdown()`.
    */
@@ -69,6 +74,9 @@ class FunctionScheduler {
    * in thread wakeup time.
    * By setting steady to true, FunctionScheduler will attempt to catch up.
    * i.e. more like a cronjob
+   *   默认情况下，steady为false，意味着调度可能落后于实际情况。
+   *  由于长时间运行的任务或线程唤醒时间的随机性，可能导致时间漂移，调度滞后。
+   *  设置steady为true，FunctionScheduler将尝试追赶。
    *
    * NOTE: it's only safe to set this before calling start()
    */
@@ -76,12 +84,15 @@ class FunctionScheduler {
 
   /*
    * Parameters to control the function interval.
+   * 控制函数间隔的参数
    *
    * If isPoisson is true, then use std::poisson_distribution to pick the
    * interval between each invocation of the function.
+   *  若isPoisson为true，则使用std::poisson_distribution获取函数调用之间的间隔。
    *
    * If isPoisson is false, then always use the fixed interval specified to
    * addFunction().
+   *  若isPoisson为false，则始终使用addFunction()指定的固定间隔。
    */
   struct LatencyDistribution {
     bool isPoisson;
@@ -93,11 +104,15 @@ class FunctionScheduler {
 
   /**
    * Adds a new function to the FunctionScheduler.
+   *   添加新的函数到FunctionScheduler中。
    *
    * Functions will not be run until start() is called.  When start() is
    * called, each function will be run after its specified startDelay.
    * Functions may also be added after start() has been called, in which case
    * startDelay is still honored.
+   *   函数不会被运行，直到调用start()。
+   *   当调用start()时，每个函数将在其指定的startDelay后运行。
+   *   也可以在调用start()后添加函数，此时startDelay仍然有效。
    *
    * Throws an exception on error.  In particular, each function must have a
    * unique name--two functions cannot be added with the same name.
@@ -111,6 +126,7 @@ class FunctionScheduler {
   /*
    * Add a new function to the FunctionScheduler with a specified
    * LatencyDistribution
+   * 添加新的函数到FunctionScheduler中，并指定LatencyDistribution
    */
   void addFunction(
       Function<void()>&& cb,
@@ -121,6 +137,7 @@ class FunctionScheduler {
 
   /**
    * Adds a new function to the FunctionScheduler to run only once.
+   *   添加新的函数到FunctionScheduler中，该函数只运行一次。
    */
   void addFunctionOnce(
       Function<void()>&& cb,
@@ -131,6 +148,7 @@ class FunctionScheduler {
    * Add a new function to the FunctionScheduler with the time
    * interval being distributed uniformly within the given interval
    * [minInterval, maxInterval].
+   *   添加新的函数到FunctionScheduler中，其时间间隔在给定的[minInterval, maxInterval]区间内均匀分布。
    */
   void addFunctionUniformDistribution(
       Function<void()>&& cb,
@@ -145,6 +163,7 @@ class FunctionScheduler {
    * Note: The scheduling of the next run time happens right before the function
    * invocation, so the first time a function takes more time than the interval,
    * it will be reinvoked immediately.
+   *  添加新的函数到FunctionScheduler中，其启动时间被尝试调度，使得它们与间隔的余数相同。
    */
   void addFunctionConsistentDelay(
       Function<void()>&& cb,
@@ -155,11 +174,13 @@ class FunctionScheduler {
   /**
    * A type alias for function that is called to determine the time
    * interval for the next scheduled run.
+   *   类型别名，用于确定下一次调度运行的时间间隔。
    */
   using IntervalDistributionFunc = Function<std::chrono::microseconds()>;
   /**
    * A type alias for function that returns the next run time, given the current
    * run time and the current start time.
+   *   类型别名，用于获取下一次运行时间，给定当前运行时间和当前启动时间。
    */
   using NextRunTimeFunc = Function<std::chrono::steady_clock::time_point(
       std::chrono::steady_clock::time_point,
@@ -172,6 +193,9 @@ class FunctionScheduler {
    * for supporting custom interval distribution algorithms in addition
    * to built in constant interval; and Poisson and jitter distributions
    * (@see FunctionScheduler::addFunction and
+   * 添加新的函数到FunctionScheduler中。
+   *  调度间隔由间隔分布函数决定，该函数在下一次函数执行调度时被调用。
+   *  允许在内置常量间隔之外支持自定义间隔分布算法，以及Poisson和抖动分布。
    * @see FunctionScheduler::addFunctionJitterInterval).
    */
   void addFunctionGenericDistribution(
@@ -185,6 +209,7 @@ class FunctionScheduler {
    * Like addFunctionGenericDistribution, adds a new function to the
    * FunctionScheduler, but the next run time is determined directly by the
    * given functor, rather than by adding an interval.
+   *   与addFunctionGenericDistribution类似，但下一次运行时间由给定的functor直接决定，而非通过添加间隔。
    */
   void addFunctionGenericNextRunTimeFunctor(
       Function<void()>&& cb,
@@ -195,7 +220,7 @@ class FunctionScheduler {
 
   /**
    * Cancels the function with the specified name, so it will no longer be run.
-   *
+   *   取消具有指定名称的函数，使其不再运行。
    * Returns false if no function exists with the specified name.
    */
   bool cancelFunction(StringPiece nameID);
@@ -203,6 +228,7 @@ class FunctionScheduler {
 
   /**
    * All functions registered will be canceled.
+   *   所有注册的函数都将被取消。
    */
   void cancelAllFunctions();
   void cancelAllFunctionsAndWait();
@@ -213,24 +239,28 @@ class FunctionScheduler {
    * be reset with the same parameters it was passed initially, including
    * its startDelay. If the startDelay was 0, the function will be invoked
    * immediately.
-   *
+   *   重置指定函数的定时器。
+   *  当调用resetFunctionTimer时，将重置指定函数的定时器，其参数与最初传入的参数相同，包括其startDelay。
+   *  若startDelay为0，则函数将立即调用。
    * Returns false if no function exists with the specified name.
    */
   bool resetFunctionTimer(StringPiece nameID);
 
   /**
    * Starts the scheduler.
-   *
+   * 启动FunctionScheduler。
    * Returns false if the scheduler was already running.
    */
   bool start();
 
   /**
    * Stops the FunctionScheduler.
-   *
+   * 停止FunctionScheduler。
    * This method blocks until any running function terminates. It is also called
    * automatically on FunctionScheduler destruction.
-   *
+   * 该函数会阻塞，直到运行函数完成。
+   * 此方法也会在FunctionScheduler析构时自动调用。
+   * 
    * This FunctionScheduler may be restarted later by calling start() again.
    *
    * Returns false if the scheduler was not running (in which case this method
@@ -243,6 +273,7 @@ class FunctionScheduler {
 
   /**
    * Set the name of the worker thread.
+   * 设置工作线程的名称。
    */
   void setThreadName(StringPiece threadName);
 
@@ -366,21 +397,25 @@ class FunctionScheduler {
   std::thread thread_;
 
   // Mutex to protect our member variables.
+  /*   互斥锁，用于保护成员变量 */
   std::mutex mutex_;
   bool running_{false};
 
   // The functions to run.
   // This is a heap, ordered by next run time.
+  /* 堆结构：保存需运行的函数，以下次运行时间为顺序 */
   FunctionHeap functions_;
   FunctionMap functionsMap_;
   RunTimeOrder fnCmp_;
 
   // The function currently being invoked by the running thread.
   // This is null when the running thread is idle
+  /* 当前正在运行的函数。若运行线程空闲则为nullptr */
   RepeatFunc* currentFunction_{nullptr};
 
   // Condition variable that is signalled whenever a new function is added
   // or when the FunctionScheduler is stopped.
+  /* 条件变量，用于通知新增函数或停止FunctionScheduler */
   std::condition_variable runningCondvar_;
 
   std::string threadName_{"FuncSched"};

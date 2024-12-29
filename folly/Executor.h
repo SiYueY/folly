@@ -51,18 +51,22 @@ class ExecutorKeepAliveBase {
 
 /// An Executor accepts units of work with add(), which should be
 /// threadsafe.
+/* 执行器 ：接受工作单元的add()方法，该方法应该是线程安全的。*/
 class Executor {
  public:
   virtual ~Executor() = default;
 
   /// Enqueue a function to be executed by this executor. This and all
   /// variants must be threadsafe.
+  /* 向执行器添加函数，该函数应该被执行器执行。该方法和所有变体都必须是线程安全的。*/
   virtual void add(Func) = 0;
 
   /// Enqueue a function with a given priority, where 0 is the medium priority
   /// This is up to the implementation to enforce
+  /* 向执行器添加带有给定优先级的函数，其中0是中等优先级。该功能是由实现强制执行 */
   virtual void addWithPriority(Func, int8_t priority);
 
+  /* 获取执行器的优先级数 */
   virtual uint8_t getNumPriorities() const { return 1; }
 
   static constexpr int8_t LO_PRI = SCHAR_MIN;
@@ -71,16 +75,21 @@ class Executor {
 
   /**
    * Executor::KeepAlive is a safe pointer to an Executor.
+   *  Executor::KeepAlive 是 Executor 的安全指针。
    * For any Executor that supports KeepAlive functionality, Executor's
    * destructor will block until all the KeepAlive objects associated with that
    * Executor are destroyed.
+   * 对于支持 KeepAlive 功能的任何执行器，执行器的析构函数将阻塞，直到与该执行器相关的所有 KeepAlive 对象被销毁。
    * For Executors that don't support the KeepAlive functionality, KeepAlive
    * doesn't provide such protection.
+   *  对于不支持 KeepAlive 功能的执行器，KeepAlive 没有提供此类保护。
    *
    * KeepAlive should *always* be used instead of Executor*. KeepAlive can be
    * implicitly constructed from Executor*. getKeepAliveToken() helper method
    * can be used to construct a KeepAlive in templated code if you need to
    * preserve the original Executor type.
+   *  应该始终使用 KeepAlive 而不是 Executor*。KeepAlive 可以隐式构造自 Executor.
+   * 若需要保留原始执行器类型，可以使用 getKeepAliveToken() 辅助方法。
    */
   template <typename ExecutorT = Executor>
   class KeepAlive : private detail::ExecutorKeepAliveBase {

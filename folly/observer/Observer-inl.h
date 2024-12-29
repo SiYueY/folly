@@ -110,30 +110,36 @@ Observer<std::decay_t<T>> makeStaticObserver(std::shared_ptr<T> value) {
   return makeObserver([value_2 = std::move(value)] { return value_2; });
 }
 
+/* AtomicObserver 构造函数 */
 template <typename T>
 AtomicObserver<T>::AtomicObserver(Observer<T> observer)
     : observer_(std::move(observer)) {}
 
+/* AtomicObserver 拷贝构造函数 */
 template <typename T>
 AtomicObserver<T>::AtomicObserver(const AtomicObserver<T>& other)
     : AtomicObserver(other.observer_) {}
 
+/* AtomicObserver 移动构造函数 */
 template <typename T>
 AtomicObserver<T>::AtomicObserver(AtomicObserver<T>&& other) noexcept
     : AtomicObserver(std::move(other.observer_)) {}
 
+/* AtomicObserver 拷贝赋值函数 */
 template <typename T>
 AtomicObserver<T>& AtomicObserver<T>::operator=(
     const AtomicObserver<T>& other) {
   return *this = other.observer_;
 }
 
+/* AtomicObserver 移动赋值函数 */
 template <typename T>
 AtomicObserver<T>& AtomicObserver<T>::operator=(
     AtomicObserver<T>&& other) noexcept {
   return *this = std::move(other.observer_);
 }
 
+/* AtomicObserver 赋值函数 */
 template <typename T>
 AtomicObserver<T>& AtomicObserver<T>::operator=(Observer<T> observer) {
   observer_ = std::move(observer);
@@ -141,6 +147,7 @@ AtomicObserver<T>& AtomicObserver<T>::operator=(Observer<T> observer) {
   return *this;
 }
 
+/* 获取AtomicObserver */
 template <typename T>
 T AtomicObserver<T>::get() const {
   auto version = cachedVersion_.load(std::memory_order_acquire);

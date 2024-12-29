@@ -20,6 +20,7 @@
 
 // SingletonVault - a library to manage the creation and destruction
 // of interdependent singletons.
+// SingletomVault：管理单例对象的创建和销毁
 //
 // Recommended usage of this class: suppose you have a class
 // called MyExpensiveService, and you only want to construct one (ie,

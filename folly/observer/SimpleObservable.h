@@ -27,6 +27,7 @@ namespace observer {
 template <typename T>
 class SimpleObservable {
  public:
+  /* 构造函数 */
   template <
       typename U = T,
       typename = std::enable_if_t<std::is_default_constructible<U>::value>>
@@ -35,9 +36,11 @@ class SimpleObservable {
   explicit SimpleObservable(T value);
   explicit SimpleObservable(std::shared_ptr<const T> value);
 
+  /* 设置值 */
   void setValue(T value);
   void setValue(std::shared_ptr<const T> value);
 
+  /* 获取Observable */
   auto getObserver() const;
 
  private:

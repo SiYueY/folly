@@ -77,6 +77,7 @@ CacheState gCacheState;
 
 } // namespace
 
+/* 获取当前线程的ID */
 uint64_t getOSThreadID() {
   thread_local std::pair<uint64_t, uint64_t> cache{0, 0};
   auto epoch = CacheState::epoch.load();
